@@ -7,9 +7,10 @@ import lombok.Setter;
 @AllArgsConstructor
 @Getter
 @Setter
-public class UploadFileResponse {
+public class UploadFileResponse{
 private String fileName;
 private String fileDownloadUri;
 private String fileType;
 private long size;
+private String message;
 }
