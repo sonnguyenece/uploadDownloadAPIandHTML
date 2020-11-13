@@ -1,7 +1,10 @@
 package com.example.uploaddownloadfile.controller;
 
+import com.example.uploaddownloadfile.exception.FileSizeOutOfDiskException;
+import com.example.uploaddownloadfile.payload.ExceptionResponse;
 import com.example.uploaddownloadfile.payload.UploadFileResponse;
 import com.example.uploaddownloadfile.service.FileStorageService;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +21,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
+@Slf4j
 @RestController
 public class FileController {
     private static final Logger logger = LoggerFactory.getLogger(FileController.class);
@@ -28,24 +31,34 @@ public class FileController {
 
     @PostMapping("/uploadFile")
     public UploadFileResponse uploadFile(@RequestParam("file") MultipartFile file) {
+        String errorCode = "success";
         String fileName = fileStorageService.storeFile(file);
-
+        UploadFileResponse response=null;
         String fileDownloadUri = ServletUriComponentsBuilder
                 .fromCurrentContextPath()
                 .path("/downloadFile/")
                 .path(fileName)
                 .toUriString();
-
-        return new UploadFileResponse(fileName, fileDownloadUri, file.getContentType(), file.getSize());
+        try {
+            if (file.getSize() > 200000000)
+                throw new FileSizeOutOfDiskException("File's extremely large");
+        } catch (FileSizeOutOfDiskException e) {
+            log.error("File is extremely large!!");
+            errorCode = e.getError();
+        }
+        finally {
+            response= new UploadFileResponse(fileName, fileDownloadUri, file.getContentType(), file.getSize(), errorCode);
+        }
+        return response;
     }
 
-    @PostMapping("/uploadMultipleFiles")
-    public List<UploadFileResponse> uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) {
-        return Arrays.asList(files)
-                .stream()
-                .map(file -> uploadFile(file))
-                .collect(Collectors.toList());
-    }
+//    @PostMapping("/uploadMultipleFiles")
+//    public List<UploadFileResponse> uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) {
+//        return Arrays.asList(files)
+//                .stream()
+//                .map(file -> uploadFile(file))
+//                .collect(Collectors.toList());
+//    }
 
     @GetMapping("/downloadFile/{fileName:.+}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) {
